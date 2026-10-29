@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOT.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #000;
+    --panel: #0a0a0a;
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #ededed;
+    --muted: #777;
+    --gain: #00e5a0;
+    --loss: #ff4d4d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 22px clamp(14px, 3vw, 44px) 30px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    opacity: 0;
+    transform: translateY(18px);
+    animation: rise 0.65s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+  .p1 { animation-delay: 0.05s; }
+  .p2 { animation-delay: 0.15s; }
+  .p3 { animation-delay: 0.25s; }
+  .p4 { animation-delay: 0.35s; }
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .brand span { color: var(--gain); }
+  .brand-sub {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .spacer { flex: 1; }
+  .control { display: flex; flex-direction: column; gap: 6px; }
+  .control-row { display: flex; align-items: center; gap: 10px; }
+  select {
+    background: #111;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:hover, select:focus { border-color: rgba(0, 229, 160, 0.5); }
+  input[type="range"] {
+    width: 160px;
+    accent-color: var(--gain);
+    cursor: pointer;
+  }
+  .params { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+  .param-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    min-width: 64px;
+    text-align: right;
+  }
+  .run-btn {
+    position: relative;
+    overflow: hidden;
+    background: var(--text);
+    color: #000;
+    border: none;
+    border-radius: 9px;
+    padding: 11px 30px;
+    min-width: 118px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    cursor: pointer;
+    transition: box-shadow 0.25s, transform 0.15s, background 0.25s;
+  }
+  .run-btn:hover { box-shadow: 0 0 22px rgba(0, 229, 160, 0.35); transform: translateY(-1px); }
+  .run-btn:active { transform: translateY(0); }
+  .run-btn:disabled { cursor: wait; }
+  .run-btn.running::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(0, 229, 160, 0.28) 50%, transparent 70%);
+    animation: shimmer 1.2s infinite;
+  }
+  .run-btn.running::before {
+    content: '';
+    position: absolute;
+    left: -30%;
+    bottom: 0;
+    height: 2px;
+    width: 30%;
+    background: var(--gain);
+    animation: slide 1.1s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+  @keyframes slide {
+    from { left: -30%; }
+    to { left: 100%; }
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .chart-panel { position: relative; min-height: 440px; padding: 16px 16px 10px; }
+  .chart-legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .legend-dot { width: 8px; height: 2px; border-radius: 1px; }
+  .charts { position: relative; height: 400px; opacity: 1; transition: opacity 0.25s; }
+  .charts.fading { opacity: 0.15; }
+  #priceChart { position: absolute; top: 0; left: 0; right: 0; height: 55%; }
+  #equityChart { position: absolute; bottom: 0; left: 0; right: 0; height: 42%; }
+  .overlay {
+    position: absolute;
+    inset: 16px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .overlay-text { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .overlay[hidden] { display: none; }
+  .error-box {
+    max-width: 70%;
+    color: var(--loss);
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .signal-panel { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .signal-head { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #333; transition: background 0.3s; }
+  .dot.long { background: var(--gain); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 229, 160, 0.5); }
+    70% { box-shadow: 0 0 0 13px rgba(0, 229, 160, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 229, 160, 0); }
+  }
+  .signal-word {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 34px;
+    font-weight: 300;
+    color: var(--muted);
+    transition: color 0.4s;
+  }
+  .signal-word.long { color: var(--gain); text-shadow: 0 0 24px rgba(0, 229, 160, 0.45); }
+  .signal-pred { font-family: 'JetBrains Mono', monospace; font-size: 15px; color: var(--text); }
+  .signal-meta { margin-top: auto; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .card { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 300;
+  }
+  .gain { color: var(--gain); }
+  .loss { color: var(--loss); }
+  .muted { color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="panel p1">
+  <div>
+    <div class="brand">BOT<span>.</span></div>
+    <div class="brand-sub" id="brandSub">ridge regression / walk-forward</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="control">
+    <div class="label">ticker</div>
+    <select id="ticker"></select>
+  </div>
+  <div class="control">
+    <div class="label">strategy</div>
+    <select id="strategy"></select>
+  </div>
+  <div class="params" id="params"></div>
+  <div class="control" style="justify-content:flex-end">
+    <div class="label">&nbsp;</div>
+    <button class="run-btn" id="runBtn">RUN</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="panel chart-panel p2">
+    <div class="chart-legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#ededed"></span>price</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#00e5a0"></span>strategy equity</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#777"></span>buy &amp; hold</div>
+    </div>
+    <div class="charts" id="charts">
+      <div id="priceChart"></div>
+      <div id="equityChart"></div>
+    </div>
+    <div class="overlay" id="placeholder">
+      <div class="overlay-text">press run</div>
+    </div>
+    <div class="overlay" id="loading" hidden>
+      <div class="overlay-text">running backtest</div>
+    </div>
+    <div class="overlay" id="errorOverlay" hidden>
+      <div class="error-box" id="errorMsg"></div>
+    </div>
+  </div>
+
+  <div class="panel signal-panel p3">
+    <div class="signal-head">
+      <span class="dot" id="sigDot"></span>
+      <span class="label">today's signal</span>
+    </div>
+    <div class="signal-word" id="sigWord">–</div>
+    <div id="sigDetailWrap">
+      <div class="label">detail</div>
+      <div class="signal-pred" id="sigDetail">–</div>
+    </div>
+    <div class="signal-meta" id="sigMeta"></div>
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="panel card p3"><div class="label">return</div><div class="value" id="mReturn">–</div></div>
+  <div class="panel card p3"><div class="label">sharpe</div><div class="value" id="mSharpe">–</div></div>
+  <div class="panel card p3"><div class="label">max dd</div><div class="value" id="mDd">–</div></div>
+  <div class="panel card p4"><div class="label">win rate</div><div class="value" id="mWin">–</div></div>
+  <div class="panel card p4"><div class="label">trades</div><div class="value" id="mTrades">–</div></div>
+  <div class="panel card p4"><div class="label">vs buy&amp;hold</div><div class="value" id="mVs">–</div></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const FALLBACK_STRATEGY = { name: 'linreg', description: 'ridge regression / walk-forward', params: [] };
+  const state = { ticker: 'SPY', strategy: 'linreg', strategies: [], running: false };
+
+  const baseChartOptions = {
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#777', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' },
+    grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+    rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+    timeScale: { borderColor: 'rgba(255,255,255,0.08)' },
+    crosshair: { mode: 0 },
+    handleScale: { axisPressedMouseMove: false },
+  };
+
+  const priceChart = LightweightCharts.createChart($('priceChart'), baseChartOptions);
+  const equityChart = LightweightCharts.createChart($('equityChart'), baseChartOptions);
+  const priceSeries = priceChart.addLineSeries({ color: '#ededed', lineWidth: 1 });
+  const stratSeries = equityChart.addLineSeries({ color: '#00e5a0', lineWidth: 2 });
+  const bhSeries = equityChart.addLineSeries({ color: '#777', lineWidth: 1 });
+
+  function fitCharts() {
+    const pc = $('priceChart');
+    const ec = $('equityChart');
+    priceChart.applyOptions({ width: pc.clientWidth, height: pc.clientHeight });
+    equityChart.applyOptions({ width: ec.clientWidth, height: ec.clientHeight });
+  }
+  new ResizeObserver(fitCharts).observe($('charts'));
+  fitCharts();
+
+  // keep both panes on the same visible range
+  let syncing = false;
+  function syncRange(from, to) {
+    from.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (syncing || !range) return;
+      syncing = true;
+      to.timeScale().setVisibleLogicalRange(range);
+      syncing = false;
+    });
+  }
+  syncRange(priceChart, equityChart);
+  syncRange(equityChart, priceChart);
+
+  const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+  const day = (s) => String(s).slice(0, 10);
+
+  // progressive setData: the equity line draws itself left to right
+  function drawAnimated(seriesList, points, duration, chart) {
+    const n = points.length;
+    const t0 = performance.now();
+    function step(now) {
+      const p = Math.min(1, (now - t0) / duration);
+      const k = Math.max(2, Math.ceil(n * easeOut(p)));
+      const slice = points.slice(0, k);
+      for (const s of seriesList) s.setData(slice);
+      // fit when the animation ends: fitContent on the still-empty chart is a no-op
+      if (p < 1) requestAnimationFrame(step);
+      else chart.timeScale().fitContent();
+    }
+    requestAnimationFrame(step);
+  }
+
+  function countUp(el, value, fmt, duration) {
+    const t0 = performance.now();
+    function step(now) {
+      const p = Math.min(1, (now - t0) / duration);
+      el.textContent = fmt(value * easeOut(p));
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  const fmtPct = (v) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+  const fmtNum = (v) => v.toFixed(2);
+
+  // decimals shown for a param value follow the declared step, e.g. step 0.01 -> 2
+  const decimalsFor = (step) => { const i = String(step).indexOf('.'); return i === -1 ? 0 : String(step).length - i - 1; };
+
+  function currentStrategy() {
+    return state.strategies.find((s) => s.name === state.strategy) || state.strategies[0] || FALLBACK_STRATEGY;
+  }
+
+  function renderParams() {
+    const box = $('params');
+    box.innerHTML = '';
+    for (const p of currentStrategy().params || []) {
+      const wrap = document.createElement('div');
+      wrap.className = 'control';
+      const lab = document.createElement('div');
+      lab.className = 'label';
+      lab.textContent = p.label || p.name;
+      const row = document.createElement('div');
+      row.className = 'control-row';
+      const rng = document.createElement('input');
+      rng.type = 'range';
+      rng.min = p.min;
+      rng.max = p.max;
+      rng.step = p.step;
+      rng.value = p.default;
+      const val = document.createElement('span');
+      val.className = 'param-val';
+      val.textContent = Number(p.default).toFixed(decimalsFor(p.step));
+      // moving a slider only updates the label, RUN applies it
+      rng.addEventListener('input', () => {
+        val.textContent = parseFloat(rng.value).toFixed(decimalsFor(p.step));
+      });
+      row.appendChild(rng);
+      row.appendChild(val);
+      wrap.appendChild(lab);
+      wrap.appendChild(row);
+      box.appendChild(wrap);
+    }
+  }
+
+  // current param values in URL form, one pair per declared param
+  function paramPairs() {
+    const pairs = {};
+    const inputs = $('params').querySelectorAll('input[type="range"]');
+    (currentStrategy().params || []).forEach((p, i) => {
+      if (inputs[i]) pairs[p.name] = String(parseFloat(inputs[i].value));
+    });
+    return pairs;
+  }
+
+  function render(data) {
+    const dates = data.dates.map(day);
+    const pricePoints = dates.map((t, i) => ({ time: t, value: data.price[i] }));
+    const stratPoints = dates.map((t, i) => ({ time: t, value: data.equity[i] }));
+    const bhPoints = dates.map((t, i) => ({ time: t, value: data.buy_hold[i] }));
+
+    priceSeries.setData(pricePoints);
+    const markers = (data.trades || [])
+      .slice()
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .map((tr) => ({
+        time: day(tr.date),
+        position: tr.side === 'buy' ? 'belowBar' : 'aboveBar',
+        color: tr.side === 'buy' ? '#00e5a0' : '#ff4d4d',
+        shape: tr.side === 'buy' ? 'arrowUp' : 'arrowDown',
+        text: tr.side.toUpperCase(),
+      }));
+    priceSeries.setMarkers(markers);
+
+    priceChart.timeScale().fitContent();
+    // both equity lines grow together, left to right
+    drawAnimated([stratSeries], stratPoints, 900, equityChart);
+    drawAnimated([bhSeries], bhPoints, 900, equityChart);
+
+    const m = data.metrics;
+    const cls = (v) => (v >= 0 ? 'value gain' : 'value loss');
+    const setCard = (el, value, fmt, colorize) => {
+      el.className = colorize ? cls(value) : 'value';
+      countUp(el, value, fmt, 900);
+    };
+    setCard($('mReturn'), m.total_return, fmtPct, true);
+    setCard($('mSharpe'), m.sharpe, fmtNum, false);
+    setCard($('mDd'), -Math.abs(m.max_drawdown), fmtPct, false);
+    setCard($('mWin'), m.win_rate, (v) => (v * 100).toFixed(0) + '%', false);
+    setCard($('mTrades'), m.trades, (v) => Math.round(v).toString(), false);
+    setCard($('mVs'), m.total_return - m.bh_total_return, fmtPct, true);
+  }
+
+  function showOverlay(id) {
+    $('placeholder').hidden = true;
+    $('loading').hidden = id !== 'loading';
+    $('errorOverlay').hidden = id !== 'error';
+  }
+
+  async function runBacktest() {
+    if (state.running) return;
+    state.running = true;
+    const btn = $('runBtn');
+    btn.disabled = true;
+    btn.classList.add('running');
+    btn.textContent = 'RUNNING';
+    showOverlay('loading');
+    $('charts').classList.add('fading');
+    const params = new URLSearchParams({
+      strategy: state.strategy,
+      ticker: state.ticker,
+      cost: '0.0005',
+      years: '10',
+      ...paramPairs(),
+    });
+    try {
+      const res = await fetch('/api/run?' + params.toString());
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((body && body.detail) || res.statusText);
+      if (!body.dates || !body.dates.length) throw new Error('no data returned for ' + state.ticker);
+      showOverlay('none');
+      $('charts').classList.remove('fading');
+      render(body);
+    } catch (err) {
+      $('errorMsg').textContent = String(err.message || err);
+      showOverlay('error');
+    } finally {
+      state.running = false;
+      btn.disabled = false;
+      btn.classList.remove('running');
+      btn.textContent = 'RUN';
+      $('charts').classList.remove('fading');
+    }
+  }
+
+  async function loadSignal() {
+    try {
+      const params = new URLSearchParams({ strategy: state.strategy, ticker: state.ticker, ...paramPairs() });
+      const res = await fetch('/api/signal?' + params.toString());
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((body && body.detail) || res.statusText);
+      const isLong = body.signal === 'LONG';
+      $('sigDot').className = 'dot' + (isLong ? ' long' : '');
+      $('sigWord').className = 'signal-word' + (isLong ? ' long' : '');
+      $('sigWord').textContent = body.signal || '–';
+      // detail is optional: hide the whole line when the strategy returns null
+      const hasDetail = body.detail !== null && body.detail !== undefined;
+      $('sigDetailWrap').hidden = !hasDetail;
+      $('sigDetail').textContent = hasDetail ? body.detail : '';
+      $('sigMeta').textContent = (body.ticker || state.ticker) + ' / ' + day(body.date);
+    } catch (err) {
+      $('sigDot').className = 'dot';
+      $('sigWord').className = 'signal-word';
+      $('sigWord').textContent = '–';
+      $('sigDetailWrap').hidden = false;
+      $('sigDetail').textContent = 'signal unavailable';
+      $('sigMeta').textContent = String(err.message || err);
+    }
+  }
+
+  async function loadTickers() {
+    try {
+      const res = await fetch('/api/tickers');
+      const body = await res.json();
+      const sel = $('ticker');
+      sel.innerHTML = '';
+      for (const t of body.tickers) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        sel.appendChild(opt);
+      }
+      if (body.tickers.includes('SPY')) sel.value = 'SPY';
+    } catch (err) {
+      // backend not up yet: keep SPY so the UI is still usable
+      const sel = $('ticker');
+      sel.innerHTML = '<option value="SPY">SPY</option>';
+    }
+    state.ticker = $('ticker').value || 'SPY';
+    $('ticker').addEventListener('change', () => {
+      state.ticker = $('ticker').value;
+      loadSignal();
+      runBacktest();
+    });
+  }
+
+  async function loadStrategies() {
+    try {
+      const res = await fetch('/api/strategies');
+      const body = await res.json().catch(() => null);
+      if (res.ok && body && Array.isArray(body.strategies) && body.strategies.length) state.strategies = body.strategies;
+    } catch (err) {
+      // fetch threw (backend down): the fallback below keeps the UI usable
+    }
+    if (!state.strategies.length) state.strategies = [FALLBACK_STRATEGY];
+    const sel = $('strategy');
+    sel.innerHTML = '';
+    for (const s of state.strategies) {
+      const opt = document.createElement('option');
+      opt.value = s.name;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    }
+    state.strategy = sel.value || FALLBACK_STRATEGY.name;
+    $('brandSub').textContent = currentStrategy().description;
+    renderParams();
+    // switching strategy re-renders params and refreshes signal + backtest, like ticker switching
+    sel.addEventListener('change', () => {
+      state.strategy = sel.value;
+      $('brandSub').textContent = currentStrategy().description;
+      renderParams();
+      loadSignal();
+      runBacktest();
+    });
+  }
+
+  $('runBtn').addEventListener('click', runBacktest);
+
+  Promise.all([loadTickers(), loadStrategies()]).then(() => {
+    loadSignal();
+    runBacktest();
+  });
+</script>
+</body>
+</html>
