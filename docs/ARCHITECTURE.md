@@ -80,8 +80,8 @@ Current strategies:
 ### bot/backtest.py
 
 - `run_backtest(strategy: str, ticker: str, params: dict, cost=0.0005, years=10) -> dict`
-  Generic pipeline for any registered strategy. Returns the JSON payload for
-  `/api/run`:
+  Generic pipeline for any registered strategy: loads + features the data, then
+  delegates to `run_on_df`. Returns the JSON payload for `/api/run`:
 
 ```
 {
@@ -102,10 +102,29 @@ Current strategies:
 }
 ```
 
+- `run_on_df(df: pd.DataFrame, strategy: str, ticker: str = "", params: dict | None = None, cost=0.0005) -> dict`
+  Same payload as `run_backtest`, but on an already-featured frame. Used by the
+  optimizer so one loaded dataframe serves many param combos.
 - `signal_today(strategy: str, ticker: str, params: dict) -> dict`
   -> `{"strategy": ..., "ticker": ..., "date": ..., "signal": "LONG" | "FLAT",
   "position": 0.0 | 1.0, "detail": "pred +0.13%" | null}`
 - `main()` so `python -m bot.backtest SPY linreg` prints strategy vs buy-and-hold.
+
+### bot/optimizer.py
+
+- `MAX_COMBOS_PER_REQUEST = 100`
+- `run_optimizer_batch(strategy: str, ticker: str, combos: list[dict], cost=0.0005, years=10) -> dict`
+  Runs each explicit param combo through `run_on_df` on one loaded dataframe.
+  Every combo is validated against the declared params: unknown name or value
+  outside `[min, max]` raises `ValueError`; more than `MAX_COMBOS_PER_REQUEST`
+  combos in one call raises `ValueError`. Returns:
+
+```
+{
+  "strategy": "linreg", "ticker": "SPY", "count": 3,
+  "results": [{"params": {"threshold": 0.0, ...}, "metrics": {...}}, ...]
+}
+```
 
 Backtest rules: the strategy's position signal is applied from the NEXT bar
 (`positions.shift(1)`), trades pay `cost` per side, long-or-flat only.
@@ -120,6 +139,12 @@ Backtest rules: the strategy's position signal is applied from the NEXT bar
   params missing from the query fall back to their defaults. Unknown strategy
   or ticker -> 400/500 JSON error, no hang.
 - `GET /api/signal?strategy=linreg&ticker=SPY&threshold=...` -> signal_today payload
+- `POST /api/optimize` with JSON body
+  `{"strategy": "linreg", "ticker": "SPY", "cost": 0.0005, "years": 10,
+  "combos": [{"threshold": 0.0, "alpha": 1.0, ...}, ...]}`
+  -> `run_optimizer_batch` payload. The UI sends the grid in batches of <= 100
+  combos (client-side total cap 2000) and renders results as they arrive. Invalid JSON, unknown strategy,
+  unknown param, out-of-range value or oversized batch -> 400, no hang.
 - `GET /` serves `static/index.html`.
 
 ## UI
@@ -127,4 +152,12 @@ Backtest rules: the strategy's position signal is applied from the NEXT bar
 `static/index.html` is one self-contained file (inline CSS/JS, chart via
 lightweight-charts CDN). Pure black background, ambient mouse-reactive canvas,
 live signal panel, strategy parameters, synchronized charts, metrics cards,
-trade log inspector, and strategy template guide.
+trade log inspector, strategy template guide, and an Optimize tab.
+
+UI run model: nothing auto-runs. Changing any control (sliders, strategy,
+ticker, timeframe, cost) only marks the run as pending (dot on the Run button,
+stale chip on the chart, dimmed signal panel); Run or Ctrl+Enter applies the
+changes. The Optimize tab lets the user pick per-param from/to/step ranges,
+shows the live combo count (capped), runs combos in batches with progress,
+and ranks results by a chosen metric; Apply loads a row into the sliders and
+marks pending without running.

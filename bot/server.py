@@ -73,3 +73,26 @@ def get_signal(request: Request, strategy: str = "linreg", ticker: str = "SPY") 
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/optimize")
+async def post_optimize(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="body must be a JSON object")
+    try:
+        from bot.optimizer import run_optimizer_batch
+        return run_optimizer_batch(
+            strategy=body.get("strategy", "linreg"),
+            ticker=body.get("ticker", "SPY"),
+            combos=body.get("combos", []),
+            cost=float(body.get("cost", 0.0005)),
+            years=int(body.get("years", 10)),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

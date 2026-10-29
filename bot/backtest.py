@@ -42,9 +42,13 @@ def _metrics(daily: pd.Series) -> dict:
 
 def run_backtest(strategy: str, ticker: str, params: dict | None = None, cost: float = DEFAULT_COST, years: int = 10) -> dict:
     ticker = ticker.upper()
+    df = build_features(load_ohlcv(ticker, years=years))
+    return run_on_df(df, strategy, ticker=ticker, params=params, cost=cost)
+
+
+def run_on_df(df: pd.DataFrame, strategy: str, ticker: str = "", params: dict | None = None, cost: float = DEFAULT_COST) -> dict:
     strat = get(strategy)
     params = {**defaults(strategy), **(params or {})}
-    df = build_features(load_ohlcv(ticker, years=years))
 
     result = strat["run"](df, params)
     signal = result["positions"].reindex(df.index)

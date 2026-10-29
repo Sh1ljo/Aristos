@@ -31,6 +31,7 @@ bot/
     linreg.py      # Ridge walk-forward strategy (the original bot)
     sma_trend.py   # simple SMA trend strategy, minimal template
   backtest.py      # generic backtest of any registered strategy, run_backtest() entry point
+  optimizer.py     # grid search over user-chosen param combos, POST /api/optimize
   server.py        # FastAPI app, serves /api/* and static/
 static/
   index.html       # the dashboard (chart, metrics cards, signal panel)

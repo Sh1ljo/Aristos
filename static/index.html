@@ -375,43 +375,6 @@
     background: var(--text); cursor: pointer;
   }
 
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 14px;
-  }
-  .switch {
-    position: relative;
-    width: 40px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-track {
-    position: absolute;
-    inset: 0;
-    background: #2a2a2e;
-    border-radius: var(--pill);
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-  .switch-track::before {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    left: 2px;
-    top: 2px;
-    background: var(--text);
-    border-radius: 50%;
-    transition: transform 0.15s ease;
-  }
-  .switch input:checked + .switch-track { background: var(--up); }
-  .switch input:checked + .switch-track::before { transform: translateX(16px); }
-
   .btn-run {
     background: var(--text);
     color: #000;
@@ -426,6 +389,115 @@
   }
   .btn-run:hover { background: #e6e6e6; }
   .btn-run:disabled { opacity: 0.5; cursor: wait; }
+  .btn-run.pending::after {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--up);
+    margin-left: 8px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  .dirty-hint { font-size: 11px; color: var(--dim); text-align: center; margin-top: 8px; }
+  .dirty-hint[hidden] { display: none; }
+
+  .stale-chip {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 6;
+    background: rgba(255, 176, 32, 0.12);
+    color: #ffb020;
+    border: 1px solid rgba(255, 176, 32, 0.35);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: var(--pill);
+    pointer-events: none;
+  }
+  .stale-chip[hidden] { display: none; }
+
+  .signal-box.stale { opacity: 0.45; }
+
+  /* Optimizer */
+  .opt-setup { display: flex; flex-direction: column; gap: 12px; }
+  .opt-note { font-size: 11px; color: var(--dim); line-height: 1.5; }
+  .opt-grid-head, .opt-row {
+    display: grid;
+    grid-template-columns: 22px 1fr 72px 72px 72px;
+    gap: 8px;
+    align-items: center;
+  }
+  .opt-grid-head { padding: 0 10px; }
+  .opt-row { padding: 7px 10px; background: var(--panel-2); border-radius: var(--radius-sm); }
+  .opt-row input[type="checkbox"] { accent-color: var(--up); width: 14px; height: 14px; cursor: pointer; }
+  .opt-name {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .opt-row input[type="number"] {
+    background: var(--field);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 8px;
+    width: 100%;
+    outline: none;
+  }
+  .opt-row input[type="number"]:disabled { opacity: 0.35; }
+  .opt-controls { display: flex; align-items: center; gap: 10px; }
+  .opt-count { font-size: 12px; color: var(--muted); margin-right: auto; }
+  .opt-count.over { color: var(--down); font-weight: 600; }
+  select.opt-sort { width: auto; padding: 8px 30px 8px 12px; }
+  .btn-run.opt-run { width: auto; padding: 10px 18px; white-space: nowrap; }
+  .opt-progress {
+    position: relative;
+    height: 22px;
+    background: var(--field);
+    border-radius: var(--pill);
+    overflow: hidden;
+  }
+  .opt-progress[hidden] { display: none; }
+  .opt-progress-bar {
+    position: absolute;
+    inset: 0;
+    width: 0%;
+    background: rgba(47, 211, 133, 0.25);
+    transition: width 0.2s ease;
+  }
+  .opt-progress span {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .opt-results { max-height: 420px; }
+  .btn-apply {
+    background: var(--field);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--pill);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+  .btn-apply:hover { background: var(--panel-2); border-color: #333338; }
+  tr.best-row td { background: rgba(47, 211, 133, 0.07); }
 
   /* Modal */
   .modal-shade {
@@ -517,6 +589,7 @@
         <div id="equityPane"></div>
         <div class="chart-overlay" id="loadingOverlay" hidden>Running backtest…</div>
       </div>
+      <div class="stale-chip" id="staleChip" hidden>Unapplied changes · Run (Ctrl+Enter)</div>
     </section>
 
     <section class="stats num">
@@ -555,6 +628,7 @@
     <section class="panel tabs-panel">
       <div class="nav-tabs">
         <button class="tab-link active" data-tab="paneTrades">Trades (<span id="tradeCountLabel">0</span>)</button>
+        <button class="tab-link" data-tab="paneOptimize">Optimize</button>
         <button class="tab-link" data-tab="paneCode">Strategy API</button>
       </div>
 
@@ -577,6 +651,50 @@
               <tr><td colspan="8" class="empty-cell">No trades loaded.</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="paneOptimize">
+        <div class="opt-setup">
+          <p class="opt-note">
+            Sweep the parameters you choose: tick <strong>vary</strong>, set from / to / step.
+            A negative step sweeps downward (e.g. from 90 to 50 by -5). Unticked params stay at
+            the slider value. Every combination is backtested and ranked.
+          </p>
+          <div class="opt-grid-head">
+            <span></span>
+            <span class="label">Parameter</span>
+            <span class="label">From</span>
+            <span class="label">To</span>
+            <span class="label">Step</span>
+          </div>
+          <div id="optParamRows"></div>
+          <div class="opt-controls">
+            <span class="opt-count num" id="optCount">0 combos</span>
+            <select id="optSort" class="opt-sort">
+              <option value="sharpe" selected>sort: sharpe</option>
+              <option value="total_return">sort: total return</option>
+              <option value="alpha">sort: vs buy&amp;hold</option>
+              <option value="cagr">sort: cagr</option>
+              <option value="calmar">sort: calmar</option>
+              <option value="max_drawdown">sort: max drawdown</option>
+              <option value="profit_factor">sort: profit factor</option>
+              <option value="win_rate">sort: win rate</option>
+            </select>
+            <button class="btn-run opt-run" id="optRunBtn">Run optimization</button>
+          </div>
+          <div class="opt-progress" id="optProgress" hidden>
+            <div class="opt-progress-bar" id="optProgressBar"></div>
+            <span id="optProgressText"></span>
+          </div>
+          <div class="table-box opt-results">
+            <table class="num">
+              <thead><tr id="optTableHead"></tr></thead>
+              <tbody id="optTableBody">
+                <tr><td class="empty-cell">No optimization run yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -642,15 +760,8 @@ register(
         </select>
       </div>
 
-      <div class="toggle-row">
-        <span>Auto-run on change</span>
-        <label class="switch">
-          <input type="checkbox" id="autoRunCheck" checked>
-          <span class="switch-track"></span>
-        </label>
-      </div>
-
       <button class="btn-run" id="execRunBtn">Run backtest</button>
+      <div class="dirty-hint" id="dirtyHint" hidden>Changes not applied yet — press Run</div>
     </section>
   </aside>
 </div>
@@ -665,6 +776,7 @@ register(
       <p><strong>Execution.</strong> Signals act on the next bar (<code>position = signal.shift(1)</code>), the same timing you would have live.</p>
       <p><strong>Walk-forward.</strong> The regression model retrains on rolling windows of past data only. Cross-validation would leak future information.</p>
       <p><strong>Costs.</strong> Entry and exit both pay the selected slippage and fee. Compare every result against the buy-and-hold line before drawing conclusions.</p>
+      <p><strong>Manual runs.</strong> Changing any setting never re-runs the backtest by itself — the Run button shows a dot until you apply the changes. The Optimize tab sweeps the parameter ranges you pick and ranks every combo; Apply loads a row into the sliders, still without auto-running.</p>
       <p><strong>Not investment advice.</strong> Educational project — no live trading.</p>
     </div>
   </div>
@@ -679,9 +791,32 @@ register(
     years: 10,
     cost: 0.0005,
     running: false,
-    autoTimer: null,
-    activeData: null
+    dirty: false,
+    activeData: null,
+    optResults: [],
+    optRunning: false,
+    optCancel: false
   };
+
+  const OPT_MAX_TOTAL = 2000;
+  const OPT_BATCH = 25;
+  const OPT_MAX_PER_PARAM = 100;
+
+  function markDirty() {
+    state.dirty = true;
+    $('execRunBtn').classList.add('pending');
+    $('dirtyHint').hidden = false;
+    $('staleChip').hidden = false;
+    $('heroSignal').classList.add('stale');
+  }
+
+  function clearDirty() {
+    state.dirty = false;
+    $('execRunBtn').classList.remove('pending');
+    $('dirtyHint').hidden = true;
+    $('staleChip').hidden = true;
+    $('heroSignal').classList.remove('stale');
+  }
 
   const chartConfig = {
     layout: {
@@ -787,7 +922,8 @@ register(
 
       rng.addEventListener('input', () => {
         num.textContent = parseFloat(rng.value).toFixed(decimalsFor(p.step));
-        triggerAuto();
+        markDirty();
+        updateOptCount();
       });
 
       item.appendChild(meta);
@@ -805,13 +941,197 @@ register(
     return pairs;
   }
 
-  function triggerAuto() {
-    if (!$('autoRunCheck').checked) return;
-    clearTimeout(state.autoTimer);
-    state.autoTimer = setTimeout(() => {
-      runBacktest();
-      loadSignal();
-    }, 250);
+  function currentSliderValue(i, p) {
+    const inputs = $('slidersShelf').querySelectorAll('input[type="range"]');
+    if (inputs[i]) return parseFloat(inputs[i].value);
+    return p.default;
+  }
+
+  function renderOptParams() {
+    const box = $('optParamRows');
+    box.innerHTML = '';
+    (currentStrategy().params || []).forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'opt-row';
+      row.innerHTML = `
+        <input type="checkbox" id="optVary${i}" title="vary this parameter">
+        <span class="opt-name" title="${p.label || p.name}">${p.label || p.name}</span>
+        <input type="number" id="optFrom${i}" step="any" title="from">
+        <input type="number" id="optTo${i}" step="any" title="to">
+        <input type="number" id="optStep${i}" step="any" title="step">
+      `;
+      box.appendChild(row);
+      const v = currentSliderValue(i, p);
+      $(`optFrom${i}`).value = v;
+      $(`optTo${i}`).value = v;
+      $(`optStep${i}`).value = p.step;
+      ['optVary', 'optFrom', 'optTo', 'optStep'].forEach((k) => {
+        $(`${k}${i}`).addEventListener('input', () => {
+          updateOptRowState(i);
+          updateOptCount();
+        });
+      });
+      updateOptRowState(i);
+    });
+    updateOptCount();
+  }
+
+  function updateOptRowState(i) {
+    const varied = $(`optVary${i}`).checked;
+    ['optFrom', 'optTo', 'optStep'].forEach((k) => { $(`${k}${i}`).disabled = !varied; });
+  }
+
+  function optValuesFor(i, p) {
+    if (!$(`optVary${i}`).checked) return [currentSliderValue(i, p)];
+    const from = parseFloat($(`optFrom${i}`).value);
+    const to = parseFloat($(`optTo${i}`).value);
+    const step = parseFloat($(`optStep${i}`).value);
+    if (!isFinite(from) || !isFinite(to) || !isFinite(step) || step === 0) return null;
+    // negative step sweeps downward: from 90 to 50 by -5 is valid, 50 to 90 by -5 is not
+    if ((to - from) * Math.sign(step) < -1e-12) return null;
+    const n = Math.min(Math.floor(Math.abs(to - from) / Math.abs(step) + 1e-9) + 1, OPT_MAX_PER_PARAM);
+    const dec = decimalsFor(p.step) + 6;
+    const vals = [];
+    for (let k = 0; k < n; k++) vals.push(Number((from + k * step).toFixed(dec)));
+    return vals;
+  }
+
+  function buildCombos() {
+    const params = currentStrategy().params || [];
+    if (!$('optParamRows').children.length) return [];
+    const perParam = params.map((p, i) => optValuesFor(i, p));
+    if (perParam.some((v) => v === null)) return null;
+    const combos = [];
+    const walk = (i, acc) => {
+      if (i === params.length) { combos.push({ ...acc }); return; }
+      for (const v of perParam[i]) {
+        acc[params[i].name] = v;
+        walk(i + 1, acc);
+      }
+    };
+    walk(0, {});
+    return combos;
+  }
+
+  function updateOptCount() {
+    const el = $('optCount');
+    if (!$('optParamRows').children.length) return;
+    const combos = buildCombos();
+    if (!combos) {
+      el.textContent = 'invalid range';
+      el.classList.add('over');
+      $('optRunBtn').disabled = true;
+      return;
+    }
+    const over = combos.length > OPT_MAX_TOTAL;
+    el.textContent = combos.length + (combos.length === 1 ? ' combo' : ' combos') + (over ? ` — max ${OPT_MAX_TOTAL}` : '');
+    el.classList.toggle('over', over);
+    $('optRunBtn').disabled = over || state.optRunning;
+  }
+
+  async function runOptimization() {
+    const combos = buildCombos();
+    if (!combos || !combos.length || combos.length > OPT_MAX_TOTAL) return;
+    state.optRunning = true;
+    state.optResults = [];
+    $('optRunBtn').disabled = true;
+    $('optRunBtn').textContent = 'Optimizing…';
+    $('optProgress').hidden = false;
+    $('optProgressBar').style.width = '0%';
+    renderOptTable();
+    try {
+      for (let i = 0; i < combos.length; i += OPT_BATCH) {
+        const batch = combos.slice(i, i + OPT_BATCH);
+        const res = await fetch('/api/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            strategy: state.strategy,
+            ticker: state.ticker,
+            cost: state.cost,
+            years: state.years,
+            combos: batch
+          })
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((body && body.detail) || res.statusText);
+        state.optResults.push(...body.results);
+        $('optProgressBar').style.width = (state.optResults.length / combos.length * 100) + '%';
+        $('optProgressText').textContent = `${state.optResults.length} / ${combos.length} combos`;
+        renderOptTable();
+      }
+      if (state.optCancel) $('optProgressText').textContent = `Cancelled at ${state.optResults.length} / ${combos.length} combos`;
+    } catch (err) {
+      console.error(err);
+      $('optProgressText').textContent = 'Error: ' + err.message;
+    } finally {
+      state.optRunning = false;
+      state.optCancel = false;
+      $('optRunBtn').textContent = 'Run optimization';
+      updateOptCount();
+    }
+  }
+
+  const OPT_METRIC_COLS = [
+    ['total_return', 'Return'],
+    ['alpha', 'vs B&H'],
+    ['sharpe', 'Sharpe'],
+    ['max_drawdown', 'Max DD'],
+    ['trades', 'Trades']
+  ];
+
+  function optSortValue(r) {
+    const m = r.metrics;
+    if ($('optSort').value === 'alpha') return m.total_return - m.bh_total_return;
+    return m[$('optSort').value] ?? 0;
+  }
+
+  function renderOptTable() {
+    const params = currentStrategy().params || [];
+    const head = $('optTableHead');
+    head.innerHTML = '<th>#</th>'
+      + params.map((p) => `<th>${p.label || p.name}</th>`).join('')
+      + OPT_METRIC_COLS.map((c) => `<th>${c[1]}</th>`).join('')
+      + '<th></th>';
+    const tbody = $('optTableBody');
+    tbody.innerHTML = '';
+    const rows = state.optResults.slice().sort((a, b) => optSortValue(b) - optSortValue(a));
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="${head.children.length}" class="empty-cell">No results yet — pick ranges and run the optimization.</td></tr>`;
+      return;
+    }
+    rows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      if (i === 0) tr.className = 'best-row';
+      let cells = `<td class="dim-cell">${i + 1}</td>`;
+      params.forEach((p) => {
+        cells += `<td>${Number(r.params[p.name]).toFixed(decimalsFor(p.step))}</td>`;
+      });
+      const m = r.metrics;
+      const alpha = m.total_return - m.bh_total_return;
+      cells += `<td class="${m.total_return >= 0 ? 'up' : 'down'}">${fmtPct(m.total_return)}</td>`;
+      cells += `<td class="${alpha >= 0 ? 'up' : 'down'}">${fmtPct(alpha)}</td>`;
+      cells += `<td>${fmtNum(m.sharpe)}</td>`;
+      cells += `<td class="down">${fmtPct(m.max_drawdown)}</td>`;
+      cells += `<td>${Math.round(m.trades)}</td>`;
+      cells += `<td><button class="btn-apply">Apply</button></td>`;
+      tr.innerHTML = cells;
+      tr.querySelector('.btn-apply').addEventListener('click', () => applyCombo(r.params));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyCombo(params) {
+    const inputs = $('slidersShelf').querySelectorAll('input[type="range"]');
+    (currentStrategy().params || []).forEach((p, i) => {
+      if (inputs[i] && params[p.name] !== undefined) {
+        inputs[i].value = params[p.name];
+        const num = inputs[i].closest('.param-item').querySelector('.param-num');
+        num.textContent = parseFloat(inputs[i].value).toFixed(decimalsFor(p.step));
+      }
+    });
+    markDirty();
+    updateOptCount();
   }
 
   function setStat(id, text, cls) {
@@ -912,7 +1232,7 @@ register(
   }
 
   async function runBacktest() {
-    if (state.running) return;
+    if (state.running) return false;
     state.running = true;
     const btn = $('execRunBtn');
     btn.disabled = true;
@@ -932,14 +1252,22 @@ register(
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error((body && body.detail) || res.statusText);
       render(body);
+      return true;
     } catch (err) {
       console.error(err);
+      return false;
     } finally {
       $('loadingOverlay').hidden = true;
       state.running = false;
       btn.disabled = false;
       btn.textContent = 'Run backtest';
     }
+  }
+
+  async function runAll() {
+    const ok = await runBacktest();
+    await loadSignal();
+    if (ok) clearDirty();
   }
 
   async function loadSignal() {
@@ -1018,10 +1346,14 @@ register(
       state.strategy = $('strategySelect').value;
       $('strategyDesc').textContent = currentStrategy().description || '';
       renderParams();
-      runBacktest();
-      loadSignal();
+      renderOptParams();
+      state.optResults = [];
+      renderOptTable();
+      markDirty();
     });
     renderParams();
+    renderOptParams();
+    renderOptTable();
   }
 
   $('timeframeGroup').querySelectorAll('.tf-btn').forEach(btn => {
@@ -1066,14 +1398,21 @@ register(
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
-      runBacktest();
-      loadSignal();
+      runAll();
     }
   });
 
+  $('optRunBtn').addEventListener('click', () => {
+    if (state.optRunning) state.optCancel = true;
+    else runOptimization();
+  });
+
+  $('optSort').addEventListener('change', () => {
+    renderOptTable();
+  });
+
   Promise.all([loadTickers(), loadStrategies()]).then(() => {
-    loadSignal();
-    runBacktest();
+    runAll();
   });
 </script>
 </body>
