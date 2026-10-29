@@ -15,11 +15,29 @@ def _metrics(daily: pd.Series) -> dict:
     equity = (1 + daily).cumprod()
     n = len(daily)
     total_return = float(equity.iloc[-1] - 1)
-    cagr = float(equity.iloc[-1] ** (252 / n) - 1)
+    cagr = float(equity.iloc[-1] ** (252 / n) - 1) if n > 0 else 0.0
     std = float(daily.std())
     sharpe = float(daily.mean() / std * np.sqrt(252)) if std > 0 else 0.0
     max_drawdown = float((equity / equity.cummax() - 1).min())
-    return {"total_return": total_return, "cagr": cagr, "sharpe": sharpe, "max_drawdown": max_drawdown}
+
+    downside = daily[daily < 0]
+    downside_std = float(downside.std()) if len(downside) > 1 else 0.0
+    sortino = float(daily.mean() / downside_std * np.sqrt(252)) if downside_std > 0 else 0.0
+    calmar = float(cagr / abs(max_drawdown)) if max_drawdown < 0 else 0.0
+
+    pos_sum = float(daily[daily > 0].sum())
+    neg_sum = float(abs(daily[daily < 0].sum()))
+    profit_factor = float(pos_sum / neg_sum) if neg_sum > 0 else (99.0 if pos_sum > 0 else 1.0)
+
+    return {
+        "total_return": total_return,
+        "cagr": cagr,
+        "sharpe": sharpe,
+        "max_drawdown": max_drawdown,
+        "sortino": sortino,
+        "calmar": calmar,
+        "profit_factor": profit_factor,
+    }
 
 
 def run_backtest(strategy: str, ticker: str, params: dict | None = None, cost: float = DEFAULT_COST, years: int = 10) -> dict:
@@ -57,15 +75,58 @@ def run_backtest(strategy: str, ticker: str, params: dict | None = None, cost: f
             "bh_cagr": bh["cagr"],
             "bh_sharpe": bh["sharpe"],
             "bh_max_drawdown": bh["max_drawdown"],
+            "bh_sortino": bh["sortino"],
+            "bh_calmar": bh["calmar"],
+            "bh_profit_factor": bh["profit_factor"],
         }
     )
     metrics.update(result.get("extra_metrics", {}))
 
     markers = []
-    for date in trades.index[trades > 0]:
-        side = "buy" if position.loc[date] > 0 else "sell"
-        markers.append(
-            {"date": date.strftime("%Y-%m-%d"), "side": side, "price": float(bt.loc[date, "close"])}
+    trade_log = []
+    entry_date = None
+    entry_price = 0.0
+
+    for i in range(len(bt)):
+        date = bt.index[i]
+        pos = position.iloc[i]
+        tr = trades.iloc[i]
+        px = float(bt["close"].iloc[i])
+
+        if tr > 0:
+            side = "buy" if pos > 0 else "sell"
+            markers.append({"date": date.strftime("%Y-%m-%d"), "side": side, "price": px})
+
+            if pos > 0:
+                entry_date = date
+                entry_price = px
+            elif pos == 0 and entry_date is not None:
+                ret = (px / entry_price - 1.0) - (2.0 * cost) if entry_price > 0 else 0.0
+                trade_log.append(
+                    {
+                        "entry_date": entry_date.strftime("%Y-%m-%d"),
+                        "exit_date": date.strftime("%Y-%m-%d"),
+                        "entry_price": round(entry_price, 2),
+                        "exit_price": round(px, 2),
+                        "return_pct": round(ret, 4),
+                        "days": (date - entry_date).days,
+                    }
+                )
+                entry_date = None
+
+    if entry_date is not None:
+        last_date = bt.index[-1]
+        last_px = float(bt["close"].iloc[-1])
+        ret = (last_px / entry_price - 1.0) - cost if entry_price > 0 else 0.0
+        trade_log.append(
+            {
+                "entry_date": entry_date.strftime("%Y-%m-%d"),
+                "exit_date": "OPEN",
+                "entry_price": round(entry_price, 2),
+                "exit_price": round(last_px, 2),
+                "return_pct": round(ret, 4),
+                "days": (last_date - entry_date).days,
+            }
         )
 
     # anchor both curves at 1.0 on the day before the first backtest day
@@ -83,6 +144,7 @@ def run_backtest(strategy: str, ticker: str, params: dict | None = None, cost: f
         "equity": equity_vals,
         "buy_hold": buy_hold_vals,
         "trades": markers,
+        "trade_log": trade_log,
         "metrics": metrics,
     }
 
@@ -119,6 +181,8 @@ def main() -> None:
     print(f"{'total return':20}{pct(m['total_return']):>12}{pct(m['bh_total_return']):>12}")
     print(f"{'cagr':20}{pct(m['cagr']):>12}{pct(m['bh_cagr']):>12}")
     print(f"{'sharpe':20}{m['sharpe']:>12.2f}{m['bh_sharpe']:>12.2f}")
+    print(f"{'sortino':20}{m['sortino']:>12.2f}{m['bh_sortino']:>12.2f}")
+    print(f"{'profit factor':20}{m['profit_factor']:>12.2f}{m['bh_profit_factor']:>12.2f}")
     print(f"{'max drawdown':20}{pct(m['max_drawdown']):>12}{pct(m['bh_max_drawdown']):>12}")
     print(f"{'win rate':20}{pct(m['win_rate']):>12}")
     print(f"{'trades':20}{m['trades']:>12}")

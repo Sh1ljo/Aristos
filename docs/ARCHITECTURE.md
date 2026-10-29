@@ -72,6 +72,10 @@ Current strategies:
   alpha, train_days, step. Extra metric: directional_accuracy.
 - `sma_trend` (strategies/sma_trend.py) - long when close > SMA(n);
   param: window. The minimal example to copy for new strategies.
+- `rsi_reversion` (strategies/rsi_reversion.py) - long on oversold RSI, exit on overbought;
+  params: window, oversold, overbought.
+- `ema_cross` (strategies/ema_cross.py) - golden cross: long when fast EMA > slow EMA;
+  params: fast, slow.
 
 ### bot/backtest.py
 
@@ -88,6 +92,7 @@ Current strategies:
   "equity": [...],       # strategy equity curve (starts at 1.0)
   "buy_hold": [...],     # buy-and-hold equity curve (starts at 1.0)
   "trades": [{"date": "...", "side": "buy"|"sell", "price": 0.0}, ...],
+  "trade_log": [{"entry_date": "...", "exit_date": "...", "entry_price": 0.0, "exit_price": 0.0, "return_pct": 0.0, "days": 0}],
   "metrics": {
     "total_return": 0.0, "cagr": 0.0, "sharpe": 0.0, "max_drawdown": 0.0,
     "win_rate": 0.0, "trades": 0, "time_in_market": 0.0,
@@ -120,8 +125,6 @@ Backtest rules: the strategy's position signal is applied from the NEXT bar
 ## UI
 
 `static/index.html` is one self-contained file (inline CSS/JS, chart via
-lightweight-charts CDN). Per plan.md section 4: pure black background, minimal
-panels, count-up metrics, equity line that draws itself, pulsing signal dot.
-The header has a ticker selector, a strategy selector, and one slider per
-strategy param (rendered from `/api/strategies`), so new strategies appear in
-the UI without any UI change.
+lightweight-charts CDN). Pure black background, ambient mouse-reactive canvas,
+live signal panel, strategy parameters, synchronized charts, metrics cards,
+trade log inspector, and strategy template guide.
