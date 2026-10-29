@@ -28,4 +28,7 @@ def load_ohlcv(ticker: str, years: int = 10) -> pd.DataFrame:
     df.index = pd.to_datetime(df.index)
     df.index.name = "date"
     df = df.dropna()
+    # cached files hold the full history, trim to the requested window
+    cutoff = df.index.max() - pd.DateOffset(years=years)
+    df = df[df.index >= cutoff]
     return df[["open", "high", "low", "close", "volume"]]
