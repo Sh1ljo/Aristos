@@ -173,7 +173,7 @@ def signal_today(strategy: str, ticker: str, params: dict | None = None) -> dict
 
 def main() -> None:
     ticker = sys.argv[1] if len(sys.argv) > 1 else "SPY"
-    strategy = sys.argv[2] if len(sys.argv) > 2 else "linreg"
+    strategy = sys.argv[2] if len(sys.argv) > 2 else "ema_cross"
     result = run_backtest(strategy, ticker)
     m = result["metrics"]
 
@@ -190,8 +190,6 @@ def main() -> None:
     print(f"{'max drawdown':20}{pct(m['max_drawdown']):>12}{pct(m['bh_max_drawdown']):>12}")
     print(f"{'win rate':20}{pct(m['win_rate']):>12}")
     print(f"{'trades':20}{m['trades']:>12}")
-    if "directional_accuracy" in m:
-        print(f"{'directional acc':20}{pct(m['directional_accuracy']):>12}")
     print(f"{'time in market':20}{pct(m['time_in_market']):>12}")
 
 

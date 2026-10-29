@@ -3,7 +3,7 @@
 Pipeline:
 
 ```
-yfinance -> bot/data.py -> bot/features.py -> bot/model.py -> bot/backtest.py -> bot/server.py -> static/index.html
+yfinance -> bot/data.py -> bot/features.py -> bot/backtest.py -> bot/server.py -> static/index.html
 ```
 
 ## Module contracts
@@ -31,14 +31,6 @@ every caller and this document.
 Features (from plan.md): returns over last 1/2/5/10 days, 10-day rolling vol,
 RSI(14) scaled 0-1, close/SMA20 - 1, volume vs 20-day average volume.
 
-### bot/model.py
-
-- `walk_forward(df: pd.DataFrame, feature_cols, train_days=500, step=20, alpha=1.0) -> pd.Series`
-  Rolling-window predictions, one per day, each made by a model trained only on
-  the previous `train_days` days. Scaler fitted on the training window only.
-- `predict_next(df: pd.DataFrame) -> float`
-  Trains on all available data and predicts tomorrow's return.
-
 ### Strategy registry (bot/registry.py, bot/strategies/)
 
 The backtester, server and UI are strategy-agnostic. A strategy is a plain
@@ -53,7 +45,7 @@ function plus metadata, registered at import time:
 
 A strategy definition:
 
-- `name: str` - unique id used in URLs (e.g. "linreg")
+- `name: str` - unique id used in URLs (e.g. "ema_cross")
 - `description: str` - one line shown in the UI
 - `params: list[dict]` - declared so the UI can render controls without knowing
   the strategy. Each param: `{"name", "label", "min", "max", "step", "default"}`
@@ -67,15 +59,13 @@ A strategy definition:
 - `detail(df: pd.DataFrame, params: dict) -> str` (optional)
   One short line for the signal panel (e.g. "pred +0.13%"), or None.
 
-Current strategies:
-- `linreg` (strategies/linreg.py) - Ridge walk-forward; params: threshold,
-  alpha, train_days, step. Extra metric: directional_accuracy.
-- `sma_trend` (strategies/sma_trend.py) - long when close > SMA(n);
-  param: window. The minimal example to copy for new strategies.
-- `rsi_reversion` (strategies/rsi_reversion.py) - long on oversold RSI, exit on overbought;
-  params: window, oversold, overbought.
+Current strategies (benchmarks; new strategies must beat these):
+- `buy_hold` (strategies/buy_hold.py) - buy on day one and hold; no params.
+  The baseline every other strategy is compared against.
 - `ema_cross` (strategies/ema_cross.py) - golden cross: long when fast EMA > slow EMA;
   params: fast, slow.
+- `rsi_reversion` (strategies/rsi_reversion.py) - long on oversold RSI, exit on overbought;
+  params: window, oversold, overbought.
 
 ### bot/backtest.py
 
@@ -85,7 +75,7 @@ Current strategies:
 
 ```
 {
-  "strategy": "linreg",
+  "strategy": "ema_cross",
   "ticker": "SPY",
   "dates": [...],        # ISO date strings
   "price": [...],        # close prices
@@ -108,7 +98,7 @@ Current strategies:
 - `signal_today(strategy: str, ticker: str, params: dict) -> dict`
   -> `{"strategy": ..., "ticker": ..., "date": ..., "signal": "LONG" | "FLAT",
   "position": 0.0 | 1.0, "detail": "pred +0.13%" | null}`
-- `main()` so `python -m bot.backtest SPY linreg` prints strategy vs buy-and-hold.
+- `main()` so `python -m bot.backtest SPY ema_cross` prints strategy vs buy-and-hold.
 
 ### bot/optimizer.py
 
@@ -121,7 +111,7 @@ Current strategies:
 
 ```
 {
-  "strategy": "linreg", "ticker": "SPY", "count": 3,
+  "strategy": "ema_cross", "ticker": "SPY", "count": 3,
   "results": [{"params": {"threshold": 0.0, ...}, "metrics": {...}}, ...]
 }
 ```
@@ -134,13 +124,13 @@ Backtest rules: the strategy's position signal is applied from the NEXT bar
 - `GET /api/tickers` -> `{"tickers": [...]}`
 - `GET /api/strategies` -> `{"strategies": [{"name", "description", "params": [...]}, ...]}`
   (params exactly as declared in the registry)
-- `GET /api/run?strategy=linreg&ticker=SPY&cost=0.0005&years=10&threshold=0.0005&alpha=1.0`
+- `GET /api/run?strategy=ema_cross&ticker=SPY&cost=0.0005&years=10&threshold=0.0005&alpha=1.0`
   -> run_backtest payload. Undeclared query params are ignored; declared
   params missing from the query fall back to their defaults. Unknown strategy
   or ticker -> 400/500 JSON error, no hang.
-- `GET /api/signal?strategy=linreg&ticker=SPY&threshold=...` -> signal_today payload
+- `GET /api/signal?strategy=ema_cross&ticker=SPY&threshold=...` -> signal_today payload
 - `POST /api/optimize` with JSON body
-  `{"strategy": "linreg", "ticker": "SPY", "cost": 0.0005, "years": 10,
+  `{"strategy": "ema_cross", "ticker": "SPY", "cost": 0.0005, "years": 10,
   "combos": [{"threshold": 0.0, "alpha": 1.0, ...}, ...]}`
   -> `run_optimizer_batch` payload. The UI sends the grid in batches of <= 100
   combos (client-side total cap 2000) and renders results as they arrive. Invalid JSON, unknown strategy,

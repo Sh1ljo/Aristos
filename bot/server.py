@@ -52,7 +52,7 @@ def _strategy_params(strategy: str, request: Request) -> dict:
 
 
 @app.get("/api/run")
-def get_run(request: Request, strategy: str = "linreg", ticker: str = "SPY", cost: float = 0.0005, years: int = 10) -> dict:
+def get_run(request: Request, strategy: str = "ema_cross", ticker: str = "SPY", cost: float = 0.0005, years: int = 10) -> dict:
     params = _strategy_params(strategy, request)
     try:
         from bot.backtest import run_backtest
@@ -64,7 +64,7 @@ def get_run(request: Request, strategy: str = "linreg", ticker: str = "SPY", cos
 
 
 @app.get("/api/signal")
-def get_signal(request: Request, strategy: str = "linreg", ticker: str = "SPY") -> dict:
+def get_signal(request: Request, strategy: str = "ema_cross", ticker: str = "SPY") -> dict:
     params = _strategy_params(strategy, request)
     try:
         from bot.backtest import signal_today
@@ -86,7 +86,7 @@ async def post_optimize(request: Request) -> dict:
     try:
         from bot.optimizer import run_optimizer_batch
         return run_optimizer_batch(
-            strategy=body.get("strategy", "linreg"),
+            strategy=body.get("strategy", "ema_cross"),
             ticker=body.get("ticker", "SPY"),
             combos=body.get("combos", []),
             cost=float(body.get("cost", 0.0005)),

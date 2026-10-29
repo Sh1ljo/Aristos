@@ -786,7 +786,7 @@ register(
   const $ = (id) => document.getElementById(id);
   const state = {
     ticker: 'SPY',
-    strategy: 'linreg',
+    strategy: 'ema_cross',
     strategies: [],
     years: 10,
     cost: 0.0005,
@@ -892,7 +892,7 @@ register(
   const decimalsFor = (step) => { const i = String(step).indexOf('.'); return i === -1 ? 0 : String(step).length - i - 1; };
 
   function currentStrategy() {
-    return state.strategies.find((s) => s.name === state.strategy) || state.strategies[0] || { name: 'linreg', params: [] };
+    return state.strategies.find((s) => s.name === state.strategy) || state.strategies[0] || { name: 'ema_cross', params: [] };
   }
 
   function renderParams() {

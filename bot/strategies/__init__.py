@@ -1,1 +1,1 @@
-from . import ema_cross, linreg, rsi_reversion, sma_trend  # noqa: F401 - importing registers all strategies
+from . import buy_hold, ema_cross, rsi_reversion  # noqa: F401 - importing registers all strategies
